@@ -8,6 +8,18 @@ const PORT = process.env.PORT || 8080
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json())
 
+
+
+// play with phantom js
+
+
+
+
+
+
+
+
+
 app.get('/', (req, res) => {
   ///////////////////////////////
   // 1. prompt user to sign in //
@@ -52,20 +64,62 @@ app.get('/authorization-code/callback', async (req, res) => {
 
       const { data: userInfo } = await axios('https://account-d.docusign.com/oauth/userinfo', headers)
       
-      
       /////////////////////////////////////////////
       // 4. finally can make API calls, phew! :D //
       /////////////////////////////////////////////
       const { account_id, base_uri } = userInfo.accounts.find(({ account_id }) => account_id === process.env.DOCUSIGN_ACCOUNT_ID)
+      const apiBaseURL = `${base_uri}/restapi/v2.1/accounts/${account_id}`
       
+      ////////////////////////////////////
+      // Let's try creating an envelope //
+      ////////////////////////////////////
+      const envBody = {
+        recipients: {
+          "signers": [
+            {
+              "tabs": {
+                "signHereTabs": [
+                  {
+                    "stampType": "signature",
+                    "name": "SignHere",
+                    "tabLabel": "signatureTab",
+                    "scaleValue": "1",
+                    "optional": "false",
+                    "documentId": "1",
+                    "recipientId": "1",
+                    "pageNumber": "1",
+                    "xPosition": "73",
+                    "yPosition": "440"
+                  }
+                ]
+              },
+              "name": "Example J Simpson",
+              "email": "zylo.codes@gmail.com",
+              "clientUserId": "zylo.codes@gmail.com",
+              "recipientId": "1",
+              "routingOrder": "1"
+            }
+          ]
+        },
+        "status": "created",
+        "emailSubject": "Example Signing Document",
+        emailBlurb: 'Hey, testing!',
+        documents: [
+          {
+            htmlDefinition: {
+              source: "<html><body><div>Example HTML page source</div></body></html>"
+            },
+            documentId: "1",
+            name: "doc1.html"
+          }
+        ]
+      }
+      
+      const { data: envelope } = await axios.post(`${apiBaseURL}/envelopes`, envBody, headers)
+      
+      res.json(envelope)
 
-      //////////////////////////////////////////////
-      // Let's try getting my account's templates //
-      //////////////////////////////////////////////
-      const queryURL = `${base_uri}/restapi/v2.1/accounts/${account_id}/templates`
-      const { data: templates } = await axios(queryURL, headers)
-      
-      res.json(templates)
+      res.end()
     } catch (err) {
       console.log(err)
       res.status(500).end()
