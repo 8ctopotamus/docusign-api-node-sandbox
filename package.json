@@ -15,6 +15,6 @@
     "docusign-esign": "^5.8.1",
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
-    "webpage": "^0.3.0"
+    "puppeteer": "^5.5.0"
   }
 }

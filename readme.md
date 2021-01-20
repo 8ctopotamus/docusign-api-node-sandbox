@@ -14,3 +14,6 @@ DOCUSIGN_CLIENT_SECRET=YOUR_DOCUSIGN_CLIENT_SECRET
 DOCUSIGN_SUPER_SECRET_STATE=ADD_STRONG_PASSWORD_HERE
 DOCUSIGN_AUTH_REDIRECT_URL=YOUR_DOCUSIGN_REDIRECT_URL
 ```
+## Scraping
+https://gist.github.com/emmiep/cd35de612412ac6a283613a438e6acfa
+https://blog.risingstack.com/pdf-from-html-node-js-puppeteer/
