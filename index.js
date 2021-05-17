@@ -2,11 +2,12 @@
 
 require('dotenv').config()
 const fs = require('fs')
-const Puppeteer = require('puppeteer');
 const axios = require('axios')
 const express = require("express");
 var session = require('express-session');
 const mongoose = require('mongoose');
+const Puppeteer = require('puppeteer');
+const pdf = require('html-pdf');
 
 mongoose.connect('mongodb://localhost:27017/docusign_sandbox', {useNewUrlParser: true, useUnifiedTopology: true});
 
@@ -24,12 +25,11 @@ app.use(session({
   cookie: { secure: true }
 }))
 
-const getCoords = async res => {
-  const browser = await Puppeteer.launch();
+const createTabs = async contentHtml => {
+  const browser = await Puppeteer.launch({headless:false});
   const page = await browser.newPage();
-  var contentHtml = fs.readFileSync('./index.html', 'utf8');
+  await page.setViewport({ ...page.viewport(), width: 612 })
   await page.setContent(contentHtml);
-  page.on('console', consoleObj => console.log(consoleObj.text()))
 
   const elsToFind = [
     'ds-signature', 
@@ -50,6 +50,8 @@ const getCoords = async res => {
     
     if (type === 'ds-signature') {
       type = 'signHere'
+    } else if (type === 'ds-initial') {
+      type = 'initialHere'
     } else {
       type = type.split('-')
         .filter(str => str !== 'ds')
@@ -61,46 +63,61 @@ const getCoords = async res => {
       name,
       coords: { top, left, bottom, right }, 
       role: el.getAttribute('data-ds-role'),
-      recipientId: el.getAttribute('data-ds-recipient-id'), 
+      recipientId: String(el.getAttribute('data-ds-recipient-id')), 
       required: el.required, 
       type,
     }
   }))
   
+  const pageHeight = 792
   tabs = tabs.reduce((prev, curr) => {
-    const { type, recipientId, coords, required, name } = curr
+    const { recipientId, type, coords, required, name } = curr
+    const xPosition = Math.floor(coords.left)
+    const y = Math.floor(coords.top)
+    // const pageNumber = Math.floor(pageHeight / y) + 1
+    // console.log(y, pageNumber)
+    // const yPosition = (pageHeight * pageNumber - y) * -1
+    // console.log(yPosition)
+    
+    const pageNumber = Math.ceil(y/pageHeight) 
+    const difference = (pageHeight * pageNumber) - y 
+    yPosition = pageHeight - difference
+
     const tab = {
       recipientId,
       name,
-      tabLabel: type,
       optional: !required,
-      documentId: "1",
-      pageNumber: "1",
-      xPosition: Math.floor(coords.left),
-      yPosition: Math.floor(coords.top),
+      documentId: "2",
+      pageNumber,
+      xPosition,
+      yPosition
     }
-    !!prev[type] 
-      ? prev[type].push(tab)
-      : prev[type] = [tab]
+    console.log(tab)
+    if (prev[recipientId]) {
+      if (prev[recipientId][type]) {
+        prev[recipientId][type].push(tab)
+      } else {
+        prev[recipientId][type] = [tab]
+      }
+    } else {
+      prev[recipientId] = { [type]: [tab] }
+    }
     return prev
   }, {})
 
-  console.log(tabs)
   await browser.close();
-  // res.json(tabs)
+  return tabs
 }
 
-getCoords()
+
 
 app.get('/', (req, res) => {
   ///////////////////////////////
   // 1. prompt user to sign in //
   ///////////////////////////////
-  // const authURL = `https://account-d.docusign.com/oauth/auth?response_type=code&scope=signature&client_id=${process.env.DOCUSIGN_CLIENT_ID}&state=${process.env.DOCUSIGN_SUPER_SECRET_STATE}&redirect_uri=${process.env.DOCUSIGN_AUTH_REDIRECT_URL}`
+  const authURL = `https://account-d.docusign.com/oauth/auth?response_type=code&scope=signature&client_id=${process.env.DOCUSIGN_CLIENT_ID}&state=${process.env.DOCUSIGN_SUPER_SECRET_STATE}&redirect_uri=${process.env.DOCUSIGN_AUTH_REDIRECT_URL}`
 
-  // res.redirect(authURL)
-
-  getCoords(res)
+  res.redirect(authURL)
 })
 
 app.get('/authorization-code/callback', async (req, res) => {
@@ -127,7 +144,8 @@ app.get('/authorization-code/callback', async (req, res) => {
 
       const { data: { token_type, access_token, refresh_token } } = await axios.post(`https://account-d.docusign.com/oauth/token`, body, headers)
 
-      console.log(refresh_token)
+      console.log('Tokens received.')
+      // console.log(refresh_token)
 
       /////////////////////
       // 3. get userinfo //
@@ -140,7 +158,7 @@ app.get('/authorization-code/callback', async (req, res) => {
 
       const { data: userInfo } = await axios('https://account-d.docusign.com/oauth/userinfo', headers)
       
-      console.log(userInfo)
+      console.log('UserInfo', userInfo)
 
       /////////////////////////////////////////////
       // 4. finally can make API calls, phew! :D //
@@ -148,79 +166,80 @@ app.get('/authorization-code/callback', async (req, res) => {
       const { account_id, base_uri } = userInfo.accounts.find(({ account_id }) => account_id === process.env.DOCUSIGN_ACCOUNT_ID)
       const apiBaseURL = `${base_uri}/restapi/v2.1/accounts/${account_id}`
 
-      headers = {
-        headers: {
-          'Authorization': `${token_type} ${refresh_token}` 
-        }
-      }
-      
       ////////////////////////////////////
       // Let's try creating an envelope //
       // with a signable html doc !!!!! //
       ////////////////////////////////////
-      const browser = await Puppeteer.launch();
-      const page = await browser.newPage();
       var contentHtml = fs.readFileSync('./index.html', 'utf8');
-      await page.setContent(contentHtml);
-    
-      const elCoordiantes = await page.$$eval('ds-signature', signHere => signHere.map(sign => {
-        const {top, left, bottom, right} = sign.getBoundingClientRect();
-        return {top, left, bottom, right};
-      }))
-
-      console.log(elCoordiantes)
       
-      const signHereTabs = elCoordiantes.map(({ top, left, bottom, right }) => ({
-        "stampType": "signature",
-        "name": "SignHere",
-        "tabLabel": "signatureTab",
-        "scaleValue": "1",
-        "optional": "false",
-        "documentId": "1",
-        "recipientId": "1",
-        "pageNumber": "1",
-        "xPosition": Math.floor(left),
-        "yPosition": Math.floor(top),
-      }))
-    
-      await browser.close();
+      // CREATE ENVELOPE
+      const signers = [
+        {
+          name: "Zylo",
+          email: "zylo.codes@gmail.com",
+          clientUserId: "zylo.codes@gmail.com",
+          recipientId: "1",
+          routingOrder: "1"
+        }
+      ]
 
-      console.log(signHereTabs)
-
-      // const envBody = {
-      //   recipients: {
-      //     "signers": [
-      //       {
-      //         "tabs": {
-      //           signHereTabs
-      //         },
-      //         "name": "Example J Simpson",
-      //         "email": "zylo.codes@gmail.com",
-      //         "clientUserId": "zylo.codes@gmail.com",
-      //         "recipientId": "1",
-      //         "routingOrder": "1"
-      //       }
-      //     ]
-      //   },
-      //   "status": "created",
-      //   "emailSubject": "Example Signing Document",
-      //   emailBlurb: 'Hey, testing!',
-      //   documents: [
-      //     {
-      //       htmlDefinition: {
-      //         source: contentHtml
-      //       },
-      //       documentId: "1",
-      //       name: "doc1.html"
-      //     }
-      //   ]
-      // }
+      const envBody = {
+        recipients: {
+          signers,
+        },
+        status: "created",
+        emailSubject: "Example Signing Document",
+        emailBlurb: 'Hey, testing!',
+        documents: [
+          {
+            htmlDefinition: {
+              source: '<h1>COVER PAGE</h1><p>Ignore me...</p>'
+            },
+            documentId: "1",
+            name: "doc1.html"
+          }
+        ]
+      }
       
-      // const { data: envelope } = await axios.post(`${apiBaseURL}/envelopes`, envBody, headers)
-      // console.log(envelope)
-      // res.json(envelope)
+      const { data: envelope } = await axios.post(`${apiBaseURL}/envelopes`, envBody, headers)
+      console.log('NEW Envelope', envelope)
+      
+      // UPLOAD NEW DOC HTML
+      const envelopeId = envelope.envelopeId
+      
+      const { data: updatedDoc } = await axios.put(
+        `${apiBaseURL}/envelopes/${envelopeId}/documents`, 
+        {
+          documents: [
+            {
+              htmlDefinition: {
+                source: contentHtml,
+              },
+              documentId: "2",
+              name: "doc02.html"
+            }
+          ]
+        }, 
+        headers
+      )
+      console.log('updatedDoc')
+      console.log(updatedDoc)
 
-      // res.end()
+      // ADD RECIPIENT TABS
+      const tabs = await createTabs(contentHtml)
+      console.log(tabs)
+      for (const signer of signers) {
+        const { recipientId } = signer
+        const { data: updatedRecipientTabs } = await axios.post(
+          `${apiBaseURL}/envelopes/${envelopeId}/recipients/${recipientId}/tabs`, 
+          tabs[recipientId], 
+          headers
+        )
+        console.log('updatedRecipientTabs', JSON.stringify(updatedRecipientTabs, null, 2))
+      }
+      console.log('done')
+
+      res.status(200).end()
     } catch (err) {
       console.log(err)
       res.status(500).end()
