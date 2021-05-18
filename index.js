@@ -4,12 +4,8 @@ require('dotenv').config()
 const fs = require('fs')
 const axios = require('axios')
 const express = require("express");
-var session = require('express-session');
-const mongoose = require('mongoose');
 const Puppeteer = require('puppeteer');
 const pdf = require('html-pdf');
-
-mongoose.connect('mongodb://localhost:27017/docusign_sandbox', {useNewUrlParser: true, useUnifiedTopology: true});
 
 const app = express()
 const PORT = process.env.PORT || 8080
@@ -17,18 +13,10 @@ const PORT = process.env.PORT || 8080
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json())
 
-app.set('trust proxy', 1)
-app.use(session({
-  secret: 'keyboard cat',
-  resave: false,
-  saveUninitialized: true,
-  cookie: { secure: true }
-}))
-
 const createTabs = async contentHtml => {
   const browser = await Puppeteer.launch({headless:false});
   const page = await browser.newPage();
-  await page.setViewport({ ...page.viewport(), width: 612 })
+  await page.setViewport({ ...page.viewport(), width: 816 }) //816
   await page.setContent(contentHtml);
 
   const elsToFind = [
@@ -69,24 +57,29 @@ const createTabs = async contentHtml => {
     }
   }))
   
-  const pageHeight = 792
+  const ml = 95
+  const mt = 100
+  const contentHeight = 850
+  let pageHeight = mt + contentHeight
   tabs = tabs.reduce((prev, curr) => {
     const { recipientId, type, coords, required, name } = curr
-    const xPosition = Math.floor(coords.left)
-    const y = Math.floor(coords.top)
-    // const pageNumber = Math.floor(pageHeight / y) + 1
-    // console.log(y, pageNumber)
-    // const yPosition = (pageHeight * pageNumber - y) * -1
-    // console.log(yPosition)
+    const xPosition = Math.abs(Math.floor(coords.left) - ml)
+    let y = Math.abs(Math.floor(coords.top) - mt)    
+    const pageNumber = Math.ceil( y / pageHeight) 
     
-    const pageNumber = Math.ceil(y/pageHeight) 
+    if (pageNumber > 1) {
+      pageHeight = mt + contentHeight + mt
+    }
+
     const difference = (pageHeight * pageNumber) - y 
-    yPosition = pageHeight - difference
+    yPosition = Math.abs(pageHeight - difference)
+
+    console.table({ y, pageNumber, difference, yPosition })
 
     const tab = {
       recipientId,
       name,
-      optional: !required,
+      optional: required,
       documentId: "2",
       pageNumber,
       xPosition,
@@ -105,7 +98,7 @@ const createTabs = async contentHtml => {
     return prev
   }, {})
 
-  await browser.close();
+  // await browser.close();
   return tabs
 }
 
