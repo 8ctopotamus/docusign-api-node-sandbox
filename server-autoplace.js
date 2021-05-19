@@ -13,96 +13,66 @@ const PORT = process.env.PORT || 8080
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json())
 
-const createTabs = async contentHtml => {
-  const browser = await Puppeteer.launch({headless:false});
-  const page = await browser.newPage();
-  await page.setViewport({ ...page.viewport(), width: 816 }) //816
-  await page.setContent(contentHtml);
 
-  const elsToFind = [
-    'ds-signature', 
-    'ds-initial',
-    'ds-date-signed',
-    'input[data-ds-type="ssn"]',
-    'input[data-ds-type="text"]' 
-  ].join(', ')
+const createTabs = () => {
+  const contentHtml = fs.readFileSync('./index.html', 'utf8');
+  const signers = [
+    {
+      name: "Zylo",
+      email: "zylo.codes@gmail.com",
+      clientUserId: "zylo.codes@gmail.com",
+      recipientId: "1",
+      routingOrder: "1"
+    },
+    // {
+    //   name: "Zylo",
+    //   email: "zylo.codes@gmail.com",
+    //   clientUserId: "zylo.codes@gmail.com",
+    //   recipientId: "2",
+    //   routingOrder: "1"
+    // },
+    // {
+    //   name: "Zylo",
+    //   email: "zylo.codes@gmail.com",
+    //   clientUserId: "zylo.codes@gmail.com",
+    //   recipientId: "100",
+    //   routingOrder: "1"
+    // },
+  ]
+  const placeholders = contentHtml.match(/(?<=\[\[)(.*?)(?=\]\])/g)
+  if (!placeholders || placeholders.length === 0) 
+    return false
 
-  let tabs = await page.$$eval(elsToFind, els => els.map(el => {
-    const { top, left, bottom, right } = el.getBoundingClientRect()
-    let type = el.getAttribute('data-ds-type') || el.tagName.toLocaleLowerCase()
-    let name = type.includes('ds') 
-      ? type.replace('ds-', '').split('-').map(str => `${str.charAt(0).toUpperCase()}${str.slice(1)}`).join(' ') 
-      : type
-    if (name === 'ssn') name = name.toUpperCase()
-    name = `${name}`
-    
-    if (type === 'ds-signature') {
-      type = 'signHere'
-    } else if (type === 'ds-initial') {
-      type = 'initialHere'
-    } else {
-      type = type.split('-')
-        .filter(str => str !== 'ds')
-        .map((str, i) => i === 0 ? str : `${str.charAt(0).toUpperCase()}${str.slice(1)}`)
-        .join('')
-    }
-    type = `${type}Tabs`
-    return {
-      name,
-      coords: { top, left, bottom, right }, 
-      role: el.getAttribute('data-ds-role'),
-      recipientId: String(el.getAttribute('data-ds-recipient-id')), 
-      required: el.required, 
-      type,
-    }
-  }))
-  
-  const ml = 95
-  const mt = 100
-  const contentHeight = 850
-  let pageHeight = mt + contentHeight
-  tabs = tabs.reduce((prev, curr) => {
-    const { recipientId, type, coords, required, name } = curr
-    const xPosition = Math.abs(Math.floor(coords.left) - ml)
-    let y = Math.abs(Math.floor(coords.top) - mt)    
-    const pageNumber = Math.ceil( y / pageHeight) 
-    
-    if (pageNumber > 1) {
-      pageHeight = mt + contentHeight + mt
-    }
-
-    const difference = (pageHeight * pageNumber) - y 
-    yPosition = Math.abs(pageHeight - difference)
-
-    console.table({ y, pageNumber, difference, yPosition })
-
-    const tab = {
-      recipientId,
-      name,
-      optional: required,
-      documentId: "2",
-      pageNumber,
-      xPosition,
-      yPosition
-    }
-    console.log(tab)
-    if (prev[recipientId]) {
-      if (prev[recipientId][type]) {
-        prev[recipientId][type].push(tab)
-      } else {
-        prev[recipientId][type] = [tab]
-      }
-    } else {
-      prev[recipientId] = { [type]: [tab] }
-    }
-    return prev
-  }, {})
-
-  // await browser.close();
+  const tabs = {}
+  signers.forEach(({ recipientId }) => {
+    tabs[recipientId] = placeholders
+      .map(p => {
+        const [ type, role, id ] = p.split('_')
+        return { type, role, id }
+      })
+      .reduce((prev, curr) => {
+        const { type, role, id } = curr
+        const key = `${type}Tabs`
+        if(!prev[key] && id === recipientId) {
+          prev[key] = [
+            {
+              "anchorString": `[[${[ type, role, id ].join('_')}]]`,
+              "anchorXOffset": "0",
+              "anchorYOffset": "0",
+              "anchorIgnoreIfNotPresent": "false",
+              "anchorUnits": "pixels",
+              recipientId,
+              "documentId": "2"
+            }
+          ]
+        }
+        return prev
+      } , {})
+  })
   return tabs
 }
 
-
+createTabs()
 
 app.get('/', (req, res) => {
   ///////////////////////////////
@@ -159,6 +129,12 @@ app.get('/authorization-code/callback', async (req, res) => {
       const { account_id, base_uri } = userInfo.accounts.find(({ account_id }) => account_id === process.env.DOCUSIGN_ACCOUNT_ID)
       const apiBaseURL = `${base_uri}/restapi/v2.1/accounts/${account_id}`
 
+      
+      
+      
+      
+      
+      
       ////////////////////////////////////
       // Let's try creating an envelope //
       // with a signable html doc !!!!! //
@@ -219,8 +195,7 @@ app.get('/authorization-code/callback', async (req, res) => {
       console.log(updatedDoc)
 
       // ADD RECIPIENT TABS
-      const tabs = await createTabs(contentHtml)
-      console.log(tabs)
+      const tabs = createTabs(contentHtml)      
       for (const signer of signers) {
         const { recipientId } = signer
         const { data: updatedRecipientTabs } = await axios.post(
