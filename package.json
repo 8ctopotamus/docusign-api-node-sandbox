@@ -2,9 +2,9 @@
   "name": "docusign-node-scratch",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server-autoplace.js",
   "scripts": {
-    "start": "npx nodemon index",
+    "start": "npx nodemon server-autoplace.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

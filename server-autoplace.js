@@ -4,45 +4,17 @@ require('dotenv').config()
 const fs = require('fs')
 const axios = require('axios')
 const express = require("express");
-const Puppeteer = require('puppeteer');
-const pdf = require('html-pdf');
 
-const app = express()
 const PORT = process.env.PORT || 8080
 
-app.use(express.urlencoded({ extended: true }))
-app.use(express.json())
+const app = express()
+  .use(express.urlencoded({ extended: true }))
+  .use(express.json())
 
-
-const createTabs = () => {
-  const contentHtml = fs.readFileSync('./index.html', 'utf8');
-  const signers = [
-    {
-      name: "Zylo",
-      email: "zylo.codes@gmail.com",
-      clientUserId: "zylo.codes@gmail.com",
-      recipientId: "1",
-      routingOrder: "1"
-    },
-    // {
-    //   name: "Zylo",
-    //   email: "zylo.codes@gmail.com",
-    //   clientUserId: "zylo.codes@gmail.com",
-    //   recipientId: "2",
-    //   routingOrder: "1"
-    // },
-    // {
-    //   name: "Zylo",
-    //   email: "zylo.codes@gmail.com",
-    //   clientUserId: "zylo.codes@gmail.com",
-    //   recipientId: "100",
-    //   routingOrder: "1"
-    // },
-  ]
+const createTabs = (signers, contentHtml) => {
   const placeholders = contentHtml.match(/(?<=\[\[)(.*?)(?=\]\])/g)
   if (!placeholders || placeholders.length === 0) 
     return false
-
   const tabs = {}
   signers.forEach(({ recipientId }) => {
     tabs[recipientId] = placeholders
@@ -56,12 +28,12 @@ const createTabs = () => {
         if(!prev[key] && id === recipientId) {
           prev[key] = [
             {
+              recipientId,
               "anchorString": `[[${[ type, role, id ].join('_')}]]`,
               "anchorXOffset": "0",
               "anchorYOffset": "0",
               "anchorIgnoreIfNotPresent": "false",
               "anchorUnits": "pixels",
-              recipientId,
               "documentId": "2"
             }
           ]
@@ -71,8 +43,6 @@ const createTabs = () => {
   })
   return tabs
 }
-
-createTabs()
 
 app.get('/', (req, res) => {
   ///////////////////////////////
@@ -149,16 +119,30 @@ app.get('/authorization-code/callback', async (req, res) => {
           clientUserId: "zylo.codes@gmail.com",
           recipientId: "1",
           routingOrder: "1"
-        }
+        },
+        {
+          name: "Jeorsh",
+          email: "joshnaylor88@gmail.com",
+          clientUserId: "joshnaylor88@gmail.com",
+          recipientId: "2",
+          routingOrder: "1"
+        },
+        {
+          name: "8cto",
+          email: "8ctopotamus@gmail.com",
+          clientUserId: "8ctopotamus@gmail.com",
+          recipientId: "100",
+          routingOrder: "1"
+        },
       ]
 
       const envBody = {
-        recipients: {
-          signers,
-        },
+        // recipients: {
+        //   signers,
+        // },
         status: "created",
-        emailSubject: "Example Signing Document",
-        emailBlurb: 'Hey, testing!',
+        emailSubject: "Auto-tag Me!",
+        emailBlurb: 'Autotag test',
         documents: [
           {
             htmlDefinition: {
@@ -173,6 +157,7 @@ app.get('/authorization-code/callback', async (req, res) => {
       const { data: envelope } = await axios.post(`${apiBaseURL}/envelopes`, envBody, headers)
       console.log('NEW Envelope', envelope)
       
+
       // UPLOAD NEW DOC HTML
       const envelopeId = envelope.envelopeId
       
@@ -195,7 +180,7 @@ app.get('/authorization-code/callback', async (req, res) => {
       console.log(updatedDoc)
 
       // ADD RECIPIENT TABS
-      const tabs = createTabs(contentHtml)      
+      const tabs = createTabs(signers, contentHtml)      
       for (const signer of signers) {
         const { recipientId } = signer
         const { data: updatedRecipientTabs } = await axios.post(
