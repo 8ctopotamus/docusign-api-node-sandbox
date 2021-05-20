@@ -137,9 +137,9 @@ app.get('/authorization-code/callback', async (req, res) => {
       ]
 
       const envBody = {
-        // recipients: {
-        //   signers,
-        // },
+        recipients: {
+          signers,
+        },
         status: "created",
         emailSubject: "Auto-tag Me!",
         emailBlurb: 'Autotag test',
@@ -157,7 +157,6 @@ app.get('/authorization-code/callback', async (req, res) => {
       const { data: envelope } = await axios.post(`${apiBaseURL}/envelopes`, envBody, headers)
       console.log('NEW Envelope', envelope)
       
-
       // UPLOAD NEW DOC HTML
       const envelopeId = envelope.envelopeId
       
