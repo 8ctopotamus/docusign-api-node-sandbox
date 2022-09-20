@@ -1,0 +1,7 @@
+<nav>
+  {{#if authenticated}}
+    <a href="/docusign/signout" class="btn">Sign Out</a>
+  {{else}}
+    <a href="/docusign/signin" class="btn">Sign In</a>
+  {{/if}}
+</nav>

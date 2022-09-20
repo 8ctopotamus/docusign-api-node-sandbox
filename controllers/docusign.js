@@ -1,39 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 const axios = require('axios')
-
-const createTabs = (signers, contentHtml) => {
-  const placeholders = contentHtml.match(/(?<=\[\[)(.*?)(?=\]\])/g)
-  if (!placeholders || placeholders.length === 0) 
-    return false
-  const tabs = {}
-  signers.forEach(({ recipientId }) => {
-    tabs[recipientId] = placeholders
-      .map(p => {
-        const [ type, role, id ] = p.split('_')
-        return { type, role, id }
-      })
-      .reduce((prev, curr) => {
-        const { type, role, id } = curr
-        const key = `${type}Tabs`
-        if(!prev[key] && id === recipientId) {
-          prev[key] = [
-            {
-              recipientId,
-              "anchorString": `[[${[ type, role, id ].join('_')}]]`,
-              "anchorXOffset": "0",
-              "anchorYOffset": "0",
-              "anchorIgnoreIfNotPresent": "false",
-              "anchorUnits": "pixels",
-              "documentId": "2"
-            }
-          ]
-        }
-        return prev
-      } , {})
-  })
-  return tabs
-}
+const { createTabs } = require('../utils/helpers')
 
 const docusignControllers = {
   authPrompt: (req, res) => {
@@ -111,9 +79,13 @@ const docusignControllers = {
       res.status(401).send('401 Not Authorized')
     }
   },
+  signout: (req, res) => {
+    req.session.docusign = null
+    res.redirect('/')
+  },
   createEnvelope: async (req, res) => {
-    console.log('createEnvelope...')
-    res.status(200).send()
+    console.log('createEnvelope...', req.session)
+    res.status(200).redirect('/')
     ////////////////////////////////////
     // Let's try creating an envelope //
     // with a signable html doc !!!!! //
