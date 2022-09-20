@@ -14,6 +14,13 @@ DOCUSIGN_CLIENT_SECRET=YOUR_DOCUSIGN_CLIENT_SECRET
 DOCUSIGN_SUPER_SECRET_STATE=ADD_STRONG_PASSWORD_HERE
 DOCUSIGN_AUTH_REDIRECT_URL=YOUR_DOCUSIGN_REDIRECT_URL
 ```
+
+## Signable HTML
+https://developers.docusign.com/docs/esign-rest-api/how-to/creating-signable-html/
+
 ## Scraping
 https://gist.github.com/emmiep/cd35de612412ac6a283613a438e6acfa
 https://blog.risingstack.com/pdf-from-html-node-js-puppeteer/
+
+## Embedded Signing
+https://developers.docusign.com/docs/esign-rest-api/how-to/request-signature-in-app-embedded/
