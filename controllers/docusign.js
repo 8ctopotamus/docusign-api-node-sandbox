@@ -37,8 +37,8 @@ const docusignControllers = {
         }
   
         const { data: tokenInfo } = await axios.post(`https://account-d.docusign.com/oauth/token`, body, headers)
-        const { token_type, access_token, refresh_token } = tokenInfo  
-        console.log('Tokens received!', tokenInfo)
+        const { token_type, access_token } = tokenInfo  
+        console.log('Tokens received!')
         
         req.session.docusign.tokenInfo = tokenInfo
   
@@ -55,14 +55,14 @@ const docusignControllers = {
 
         const { data: userInfo } = await axios('https://account-d.docusign.com/oauth/userinfo', headers)
         
-        console.log('UserInfo: ', userInfo)
+        console.log('UserInfo found!')
         req.session.docusign.userInfo = userInfo
   
         /////////////////////////////////////////////
         // 4. finally can make API calls, phew! :D //
         /////////////////////////////////////////////
         const account = userInfo.accounts.find(({ account_id }) => account_id === process.env.DOCUSIGN_ACCOUNT_ID)
-        console.log("Account: ", account)
+        console.log("Account found!")
 
         const { account_id, base_uri } = account
         const apiBaseURL = `${base_uri}/restapi/v2.1/accounts/${account_id}`
@@ -85,92 +85,94 @@ const docusignControllers = {
   },
   createEnvelope: async (req, res) => {
     console.log('createEnvelope...', req.session)
-    res.status(200).redirect('/')
+
+    if (!req.session || !req.session.docusign) {
+      return res.status(401).redirect('/?status=error&message=No+docusign+session+found')
+    }
+
     ////////////////////////////////////
     // Let's try creating an envelope //
     // with a signable html doc !!!!! //
     ////////////////////////////////////
-    // var contentHtml = fs.readFileSync('./doc.html', 'utf8');
+
+    const { apiBaseURL, headers } = req.session.docusign
+
+    var contentHtml = fs.readFileSync(path.join(__dirname, '..', 'utils', 'doc.html'), 'utf8');
     
     // // CREATE ENVELOPE
-    // const signers = [
-    //   {
-    //     name: "Zylo",
-    //     email: "zylo.codes@gmail.com",
-    //     clientUserId: "zylo.codes@gmail.com",
-    //     recipientId: "1",
-    //     routingOrder: "1"
-    //   },
-    //   {
-    //     name: "Jeorsh",
-    //     email: "joshnaylor88@gmail.com",
-    //     clientUserId: "joshnaylor88@gmail.com",
-    //     recipientId: "2",
-    //     routingOrder: "1"
-    //   },
-    //   {
-    //     name: "8cto",
-    //     email: "8ctopotamus@gmail.com",
-    //     clientUserId: "8ctopotamus@gmail.com",
-    //     recipientId: "100",
-    //     routingOrder: "1"
-    //   },
-    // ]
+    const signers = [
+      {
+        name: "Zylo",
+        email: "zylo.codes@gmail.com",
+        clientUserId: "zylo.codes@gmail.com",
+        recipientId: "1",
+        routingOrder: "1"
+      },
+      {
+        name: "8cto",
+        email: "8ctopotamus@gmail.com",
+        clientUserId: "8ctopotamus@gmail.com",
+        recipientId: "100",
+        routingOrder: "1"
+      },
+    ]
 
-    // const envBody = {
-    //   recipients: {
-    //     signers,
-    //   },
-    //   status: "created",
-    //   emailSubject: "Auto-tag Me!",
-    //   emailBlurb: 'Autotag test',
-    //   documents: [
-    //     {
-    //       htmlDefinition: {
-    //         source: '<h1>COVER PAGE</h1><p>Ignore me...</p>'
-    //       },
-    //       documentId: "1",
-    //       name: "doc1.html"
-    //     }
-    //   ]
-    // }
+    const envBody = {
+      recipients: {
+        signers,
+      },
+      status: "created",
+      emailSubject: "Docusign Test!",
+      emailBlurb: 'This is an auto-tag test',
+      documents: [
+        {
+          htmlDefinition: {
+            source: '<h1>COVER PAGE</h1><p>Ignore me...</p>'
+          },
+          documentId: "1",
+          name: "doc1.html"
+        }
+      ]
+    }
     
-    // const { data: envelope } = await axios.post(`${apiBaseURL}/envelopes`, envBody, headers)
-    // console.log('NEW Envelope', envelope)
-    
-    // // UPLOAD NEW DOC HTML
-    // const envelopeId = envelope.envelopeId
-    
-    // const { data: updatedDoc } = await axios.put(
-    //   `${apiBaseURL}/envelopes/${envelopeId}/documents`, 
-    //   {
-    //     documents: [
-    //       {
-    //         htmlDefinition: {
-    //           source: contentHtml,
-    //         },
-    //         documentId: "2",
-    //         name: "doc02.html"
-    //       }
-    //     ]
-    //   }, 
-    //   headers
-    // )
-    // console.log('updatedDoc')
-    // console.log(updatedDoc)
+    const { data: envelope } = await axios.post(`${apiBaseURL}/envelopes`, envBody, { headers })
 
-    // // ADD RECIPIENT TABS
-    // const tabs = createTabs(signers, contentHtml)      
-    // for (const signer of signers) {
-    //   const { recipientId } = signer
-    //   const { data: updatedRecipientTabs } = await axios.post(
-    //     `${apiBaseURL}/envelopes/${envelopeId}/recipients/${recipientId}/tabs`, 
-    //     tabs[recipientId], 
-    //     headers
-    //   )
-    //   console.log('updatedRecipientTabs', JSON.stringify(updatedRecipientTabs, null, 2))
-    // }
-    // console.log('done')
+    // UPLOAD NEW DOC HTML
+    const envelopeId = envelope.envelopeId
+    console.log(`Created Envelope ${envelopeId}`, envelope)
+
+    const { data: updatedDoc } = await axios.put(
+      `${apiBaseURL}/envelopes/${envelopeId}/documents`, 
+      {
+        documents: [
+          {
+            htmlDefinition: {
+              source: contentHtml,
+            },
+            documentId: "2",
+            name: "doc02.html"
+          }
+        ]
+      }, 
+      { headers }
+    )
+
+    // ADD RECIPIENT TABS
+    const tabs = createTabs(signers, contentHtml)      
+    for (const signer of signers) {
+      const { recipientId, clientUserId } = signer
+      await axios.post(
+        `${apiBaseURL}/envelopes/${envelopeId}/recipients/${recipientId}/tabs`, 
+        tabs[recipientId], 
+        { headers }
+      )
+      console.log(`${clientUserId}'s have been tabs added`)
+    }
+
+    const { data } = await axios.put(`${apiBaseURL}/envelopes/${envelopeId}`, { status: 'sent' }, { headers })
+    console.log(`Envelope Sent!`, data)
+
+    res.status(200).redirect(`/?status=success&message=${envelopeId}+sent`)
   }
 }
 

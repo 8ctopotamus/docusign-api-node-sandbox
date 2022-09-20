@@ -1,7 +1,9 @@
 <nav>
   {{#if authenticated}}
+    <h2>{{account_name}}'s Docusign</h2>
     <a href="/docusign/signout" class="btn">Sign Out</a>
   {{else}}
+    <h2>Docusign Sandbox</h2>
     <a href="/docusign/signin" class="btn">Sign In</a>
   {{/if}}
 </nav>

@@ -14,8 +14,6 @@
 }
 
 body {
-  display: flex;
-  flex-direction: column;
   background-color: var(--dark);
   min-height: 100vh;
   color: var(--light);
@@ -34,11 +32,23 @@ a {
   color: var(--light);
 }
 
+nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--darkest);
+  padding-left: 15px;
+}
+
+nav h2 {
+  margin: 0; 
+}
+
 main {
   flex: 1;
   display: grid;
   place-items: center;
-  height: 100%;
+  padding: 60px;
 }
 
 .btn {
@@ -55,4 +65,10 @@ main {
   background-color: transparent;
   padding: 20px 50px;
   text-decoration: none;
+}
+
+.card {
+  background: var(--medium);
+  color: var(--lightest);
+  padding: 20px 40px;
 }

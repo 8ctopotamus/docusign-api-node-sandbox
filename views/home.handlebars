@@ -1,12 +1,10 @@
 <section>
   {{#if authenticated}}
-    <h1>Welcome, {{name}}!</h1>
-    <p><strong>Account name:</strong> {{account_name}}</p>
-    <p><strong>Email:</strong> {{email}}</p>
+    {{> userCard}}
     <br/>
     <a href="/docusign/createEnvelope" class="btn">Create Envelope</a>
   {{else}}
     <h1>Docusign Sandbox</h1>
-    <p>Please sign in</p>
+    <p><a href="/docusign/signin">Sign in</a> to get started!</p>
   {{/if}}
 </section>
