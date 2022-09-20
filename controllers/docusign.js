@@ -84,8 +84,6 @@ const docusignControllers = {
     res.redirect('/')
   },
   createEnvelope: async (req, res) => {
-    console.log('createEnvelope...', req.session)
-
     if (!req.session || !req.session.docusign) {
       return res.status(401).redirect('/?status=error&message=No+docusign+session+found')
     }
@@ -104,14 +102,14 @@ const docusignControllers = {
       {
         name: "Zylo",
         email: "zylo.codes@gmail.com",
-        clientUserId: "zylo.codes@gmail.com",
+        // clientUserId: "zylo.codes@gmail.com",
         recipientId: "1",
         routingOrder: "1"
       },
       {
         name: "8cto",
         email: "8ctopotamus@gmail.com",
-        clientUserId: "8ctopotamus@gmail.com",
+        // clientUserId: "8ctopotamus@gmail.com",
         recipientId: "100",
         routingOrder: "1"
       },
@@ -169,6 +167,7 @@ const docusignControllers = {
       console.log(`${clientUserId}'s have been tabs added`)
     }
 
+    console.log(`${apiBaseURL}/envelopes/${envelopeId}`)
     const { data } = await axios.put(`${apiBaseURL}/envelopes/${envelopeId}`, { status: 'sent' }, { headers })
     console.log(`Envelope Sent!`, data)
 

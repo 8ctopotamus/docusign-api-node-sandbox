@@ -51,6 +51,14 @@ main {
   padding: 60px;
 }
 
+.error {
+
+}
+
+.success {
+  
+}
+
 .btn {
   display: block;
   border: 3px solid transparent;
