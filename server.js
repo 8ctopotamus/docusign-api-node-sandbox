@@ -1,5 +1,6 @@
 require('dotenv').config()
 
+const path = require('path')
 const express = require("express");
 const session = require('express-session')
 const { engine } = require('express-handlebars')
@@ -20,6 +21,7 @@ const app = express()
   .engine('handlebars', engine())
   .set('view engine', 'handlebars')
   .set('views', './views')
+  .use(express.static(path.join(__dirname, 'public')))
   .use(express.urlencoded({ extended: true }))
   .use(express.json())
   .use(session(sess))
