@@ -84,6 +84,8 @@ const docusignControllers = {
     res.redirect('/')
   },
   createEnvelope: async (req, res) => {
+    const { embeddedSigning } = req.query
+
     if (!req.session || !req.session.docusign) {
       return res.status(401).redirect('/?status=error&message=No+docusign+session+found')
     }
@@ -102,14 +104,14 @@ const docusignControllers = {
       {
         name: "Zylo",
         email: "zylo.codes@gmail.com",
-        // clientUserId: "zylo.codes@gmail.com",
+        clientUserId: embeddedSigning ? "zylocodes" : null, // exclude clientUserId to send via email
         recipientId: "1",
         routingOrder: "1"
       },
       {
         name: "8cto",
         email: "8ctopotamus@gmail.com",
-        // clientUserId: "8ctopotamus@gmail.com",
+        clientUserId: embeddedSigning ? "8ctopotamus" : null, // exclude clientUserId to send via email
         recipientId: "100",
         routingOrder: "1"
       },
@@ -167,11 +169,37 @@ const docusignControllers = {
       console.log(`${clientUserId}'s have been tabs added`)
     }
 
-    console.log(`${apiBaseURL}/envelopes/${envelopeId}`)
+    // Send the envelope
     const { data } = await axios.put(`${apiBaseURL}/envelopes/${envelopeId}`, { status: 'sent' }, { headers })
-    console.log(`Envelope Sent!`, data)
+    console.log(`Envelope ${data.envelopeId} sent!`, data)
 
-    res.status(200).redirect(`/?status=success&message=${envelopeId}+sent`)
+    if (embeddedSigning) {
+      // FOR EMBEDDED SIGNING
+      let signerURLs = []
+      for (const signer of signers) {
+        // Create the recipient view definition
+        const requestData = {
+          returnUrl: "http://localhost:8080",
+          authenticationMethod: "none",
+          email: signer.email,
+          userName: signer.name,
+          clientUserId: signer.clientUserId,
+        }
+        const { data: { url } } = await axios.post(`${apiBaseURL}/envelopes/${envelopeId}/views/recipient`, requestData, { headers })
+        signerURLs.push(url)
+      }
+      const signerURLsParams = signerURLs.map((url, i) => {
+        const symbol = i === 0 ? '?' : '&'
+        return `${symbol}signerURLs[]=${encodeURIComponent(url)}`
+      })
+
+
+      res.status(200).redirect(signerURLs[0])
+
+      // res.status(200).redirect(`/embeddedSigning/${signerURLsParams}`)
+    } else {      
+      res.status(200).redirect(`/?status=success&message=Envelope+${envelopeId}+sent`)
+    }
   }
 }
 

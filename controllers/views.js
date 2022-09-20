@@ -1,6 +1,12 @@
 const viewControllers = {
   home: (req, res) => {
+    const { status, message } = req.query
+
     let data = {
+      notification: {
+        status, 
+        message,
+      },
       authenticated: false,
     }
     
@@ -21,6 +27,10 @@ const viewControllers = {
     }
     
     res.render('home', data)
+  },
+  embeddedSigning: (req, res) => {
+    const { signerURLs } = req.query
+    res.render('embeddedSigning', { signerURLs })
   }
 }
 

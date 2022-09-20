@@ -1,8 +1,8 @@
 const router = require('express').Router()
 const docusignRoutes = require('./docusign')
-const viewControllers = require('../controllers/views')
+const viewRoutes = require('./views')
 
 router.use('/docusign', docusignRoutes)
-router.use('*', viewControllers.home)
+router.use('/', viewRoutes)
 
 module.exports = router

@@ -4,6 +4,7 @@
   --medium: #3a506b;
   --light: #5bc0be;
   --lightest: #6fffe9;
+  --error: #D7263D;
 }
 
 * {
@@ -51,12 +52,19 @@ main {
   padding: 60px;
 }
 
-.error {
+.notification {
+  padding: 5px 15px;
+  text-align: center;
+}
 
+.error {
+  background-color: var(--error);
+  color: var(--dark);
 }
 
 .success {
-  
+  background-color: var(--light);
+  color: var(--dark);
 }
 
 .btn {
@@ -66,6 +74,7 @@ main {
   padding: 20px 50px;
   text-decoration: none;
   text-align: center;
+  margin-bottom: 5px;
 }
 
 .btn:hover {
