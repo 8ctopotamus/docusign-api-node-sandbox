@@ -1,7 +1,11 @@
-{{#if signerURLs}}
+{{!-- {{#if signerURLs}}
   {{#each signerURLs}}
     <iframe src="{{this}}" width="100%" height="400"></iframe>
   {{/each}}
 {{else}}
   <p>No embedded signing URLs detected.</p>
-{{/if}}
+{{/if}} --}}
+
+<div id="signing-ui">Loading...</div>
+
+<script src="js/embeddedSigning.js"></script>

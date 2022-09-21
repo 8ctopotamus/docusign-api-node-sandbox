@@ -29,8 +29,10 @@ const viewControllers = {
     res.render('home', data)
   },
   embeddedSigning: (req, res) => {
-    const { signerURLs } = req.query
-    res.render('embeddedSigning', { signerURLs })
+    // res.render('embeddedSigning', { 
+    //   signerURLs: req.session.docusign.signerURLs, 
+    // })
+    res.render('embeddedSigning')
   }
 }
 

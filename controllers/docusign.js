@@ -179,7 +179,7 @@ const docusignControllers = {
       for (const signer of signers) {
         // Create the recipient view definition
         const requestData = {
-          returnUrl: "http://localhost:8080",
+          returnUrl: "http://localhost:8080?status=success&message=Envelope+Signed!",
           authenticationMethod: "none",
           email: signer.email,
           userName: signer.name,
@@ -188,17 +188,21 @@ const docusignControllers = {
         const { data: { url } } = await axios.post(`${apiBaseURL}/envelopes/${envelopeId}/views/recipient`, requestData, { headers })
         signerURLs.push(url)
       }
-      const signerURLsParams = signerURLs.map((url, i) => {
-        const symbol = i === 0 ? '?' : '&'
-        return `${symbol}signerURLs[]=${encodeURIComponent(url)}`
-      })
 
+      // res.status(200).redirect(signerURLs[0])
 
-      res.status(200).redirect(signerURLs[0])
+      req.session.docusign.signerURLs = signerURLs
 
-      // res.status(200).redirect(`/embeddedSigning/${signerURLsParams}`)
+      res.status(200).redirect(`/embeddedSigning`)
     } else {      
       res.status(200).redirect(`/?status=success&message=Envelope+${envelopeId}+sent`)
+    }
+  },
+  getEmbeddedSiginingURL: (req, res) => {
+    if (req.session?.docusign?.signerURLs) {
+      res.json(req.session.docusign.signerURLs)
+    } else {
+      res.status(400).json({ error: 'No signerURLs found on session' })
     }
   }
 }
