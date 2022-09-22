@@ -10,6 +10,8 @@ const docusignControllers = {
     ///////////////////////////////
     const authURL = `https://account-d.docusign.com/oauth/auth?response_type=code&scope=signature&client_id=${process.env.DOCUSIGN_CLIENT_ID}&state=${process.env.DOCUSIGN_SUPER_SECRET_STATE}&redirect_uri=${process.env.DOCUSIGN_AUTH_REDIRECT_URL}`
   
+    console.log(authURL)
+
     res.redirect(authURL)
   },
   authCallback: async (req, res) => {
